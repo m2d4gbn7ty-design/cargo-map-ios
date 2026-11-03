@@ -1,0 +1,11 @@
+# XcodeGen / xcodebuild 产物
+CustomApp.xcodeproj/
+build/
+out/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# 系统杂项
+.DS_Store
+Thumbs.db

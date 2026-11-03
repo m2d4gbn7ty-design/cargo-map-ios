@@ -1,0 +1,15 @@
+# GitHub Actions 不可用时的备用云构建（Codemagic 免费额度即可）
+workflows:
+  ios-unsigned:
+    name: Build unsigned IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      xcode: latest
+    scripts:
+      - name: Install XcodeGen
+        script: brew install xcodegen
+      - name: Build unsigned IPA
+        script: bash scripts/build-unsigned-ipa.sh
+    artifacts:
+      - out/*.ipa

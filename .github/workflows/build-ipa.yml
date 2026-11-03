@@ -1,0 +1,34 @@
+name: Build unsigned IPA
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 打印工具链版本
+        run: |
+          xcodebuild -version
+          sw_vers
+          echo "--- SDK ---"
+          xcodebuild -showsdks | sed -n '1,40p' || true
+          xcrun --sdk iphoneos --show-sdk-version || true
+
+      - name: 安装 XcodeGen
+        run: brew install xcodegen
+
+      - name: 编译并打包未签名 IPA
+        run: bash scripts/build-unsigned-ipa.sh
+
+      - name: 上传 IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: CustomApp-unsigned-ipa
+          path: out/*.ipa
+          if-no-files-found: error
+          retention-days: 14
