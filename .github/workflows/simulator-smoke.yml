@@ -1,0 +1,50 @@
+name: Simulator smoke test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Allow simulator install (drop device-only capability check)
+        run: plutil -remove UIRequiredDeviceCapabilities App/Info.plist || true
+
+      - name: Build for iOS Simulator
+        run: |
+          set -e
+          xcodegen generate --spec project.yml
+          xcodebuild -project CustomApp.xcodeproj -scheme CustomApp -configuration Debug \
+            -sdk iphonesimulator -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+
+      - name: Boot simulator, install, launch, screenshot
+        run: |
+          set -x
+          DEVICE=$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/{print $2; exit}')
+          echo "device uuid: $DEVICE"
+          xcrun simctl boot "$DEVICE" || true
+          xcrun simctl bootstatus "$DEVICE" -b || true
+          APP=$(find build/Build/Products/Debug-iphonesimulator -maxdepth 1 -name 'CustomApp.app' | head -1)
+          echo "app bundle: $APP"
+          xcrun simctl privacy "$DEVICE" grant location com.example.customapp || true
+          xcrun simctl install "$DEVICE" "$APP"
+          xcrun simctl launch "$DEVICE" com.example.customapp
+          sleep 12
+          xcrun simctl io "$DEVICE" screenshot shot-1-launched.png
+          xcrun simctl spawn "$DEVICE" launchctl list | grep -i customapp || true
+          xcrun simctl spawn "$DEVICE" log show --style compact --predicate 'process == "CustomApp"' --last 2m 2>/dev/null | tail -40 || true
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-screenshots
+          path: shot-*.png
+          if-no-files-found: warn
